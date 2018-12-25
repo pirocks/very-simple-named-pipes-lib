@@ -1,21 +1,29 @@
-package io.github.pirocks
+package io.github.pirocks.namedpipes
 
 import java.io.*
 import java.lang.IllegalArgumentException
+import java.lang.UnsupportedOperationException
 
 
-class NamedPipe(val name: File,val overWriteExistingFile: Boolean = false) :DataInput, DataOutput{
+class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExistingFile: Boolean = false, val deleteOnClose: Boolean = true) : DataInput, DataOutput {
     companion object {
-
         var mkfifoExecutableName = "mkfifo"
     }
+
     init {
-        if(!name.exists() || overWriteExistingFile){
-            Runtime.getRuntime().exec(arrayOf(mkfifoExecutableName,name.absolutePath))
-        }else{
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            throw UnsupportedOperationException("This library only works with unix.")
+        }
+        if (!name.exists() || overWriteExistingFile || openExistingFile) {
+            if (overWriteExistingFile) {
+                name.delete()
+            }
+            Runtime.getRuntime().exec(arrayOf(mkfifoExecutableName, name.absolutePath))
+        } else {
             throw IllegalArgumentException("File already existed")
         }
     }
+
     private var inputOpen = false
 
 
@@ -30,18 +38,22 @@ class NamedPipe(val name: File,val overWriteExistingFile: Boolean = false) :Data
         outputOpen = true
         res
     }
-    fun close(){
-        if(outputOpen){
+
+    fun close() {
+        if (outputOpen) {
             outputStream.value.close()
             outputOpen = false
         }
-        if(inputOpen){
+        if (inputOpen) {
             inputStream.value.close()
             inputOpen = false
         }
+        if (deleteOnClose) {
+            name.delete()
+        }
     }
 
-    fun finalize(){
+    fun finalize() {
         close()
     }
 
@@ -50,7 +62,7 @@ class NamedPipe(val name: File,val overWriteExistingFile: Boolean = false) :Data
     }
 
     override fun readFully(bytes: ByteArray?, off: Int, len: Int) {
-        inputStream.value.readFully(bytes,off, len)
+        inputStream.value.readFully(bytes, off, len)
     }
 
     override fun readInt(): Int {
@@ -138,7 +150,7 @@ class NamedPipe(val name: File,val overWriteExistingFile: Boolean = false) :Data
     }
 
     override fun write(b: ByteArray?, off: Int, lens: Int) {
-        outputStream.value.write(b,off,lens)
+        outputStream.value.write(b, off, lens)
     }
 
     override fun writeChars(s: String?) {
