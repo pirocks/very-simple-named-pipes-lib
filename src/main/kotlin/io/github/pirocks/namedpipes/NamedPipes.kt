@@ -4,8 +4,13 @@ import java.io.*
 import java.lang.IllegalArgumentException
 import java.lang.UnsupportedOperationException
 
-
-class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExistingFile: Boolean = false, val deleteOnClose: Boolean = true) : DataInput, DataOutput {
+/**
+ * Class represents named pipes.
+ * @param deleteOnClose Whether or not to delete the created named pipe if pipe is closed.
+ * @param openExistingFile If file already exists read from named pipe.
+ * @param overWriteExistingFile If file already exists , delete and overwrite
+ */
+class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExistingFile: Boolean = false, val deleteOnClose: Boolean = true) : DataInput, DataOutput, Closeable {
     companion object {
         var mkfifoExecutableName = "mkfifo"
     }
@@ -39,7 +44,7 @@ class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExis
         res
     }
 
-    fun close() {
+    override fun close() {
         if (outputOpen) {
             outputStream.value.close()
             outputOpen = false

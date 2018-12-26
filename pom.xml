@@ -6,9 +6,9 @@
 
     <name>A Simple Named Pipes Library</name>
     <description>A simple library for working with named pipes</description>
-    <url></url>
+    <url>https://github.com/pirocks/named-pipes-thing</url>
     <scm>
-        <url></url>
+        <url>https://github.com/pirocks/named-pipes-thing.git</url>
     </scm>
     <developers>
         <developer>

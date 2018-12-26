@@ -139,6 +139,3 @@ buildNumber.properties
 /named-pipes-thing.iml
 .idea/
 named-pipes-thing.iml
-src/main/java/
-src/main/resources/
-src/test/
