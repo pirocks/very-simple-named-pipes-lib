@@ -9,7 +9,7 @@ class SimpleTest{
         val tempFile = Files.createTempFile("named-pipes-test", "").toFile()
         val pipe = NamedPipe(tempFile, openExistingFile = true)
         val toWrite = 2739847
-        pipe.writeInt(toWrite)
-        Assert.assertEquals(pipe.readInt(),toWrite)
+        pipe.writeStream.writeInt(toWrite)
+        Assert.assertEquals(pipe.readStream.readInt(),toWrite)
     }
 }
