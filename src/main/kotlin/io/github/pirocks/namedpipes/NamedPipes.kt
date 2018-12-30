@@ -4,9 +4,15 @@ import java.io.*
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 import java.lang.UnsupportedOperationException
+import java.nio.channels.FileChannel
+import java.nio.channels.FileLock
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.Files
-
+import java.nio.file.OpenOption
+import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.FileAttribute
+import java.nio.file.attribute.FileStoreAttributeView
 
 
 /**
@@ -25,13 +31,18 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
 
     init {
         windowsCheck()
-        if(openExistingFile){
-            val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
-            if(!attrs.isOther){
-                throw ExistingFileNotANamedPipe()
+        //critical section - begin
+        //This critical section exists to prevent the creation of two named pipe objects unintentionally referring to the same pipe
+        val lock = acquireLock()
+        if(namedPipe.exists()){
+            if(openExistingFile){
+                val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
+                if(!attrs.isOther){
+                    throw ExistingFileNotANamedPipe()
+                }
+            }else{
+                throw FileAlreadyExists()
             }
-        }else if(namedPipe.exists()){
-            throw FileAlreadyExists()
         }
         if (!namedPipe.exists() || overWriteExistingFile) {
             if (overWriteExistingFile) {
@@ -42,6 +53,19 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
                 throw NamedPipeCreationFailed()
             }
         }
+        releaseLock(lock)
+        //critical section - end
+    }
+
+    private fun acquireLock(): FileLock {
+        val lockFile = Paths.get(File(namedPipe.absolutePath + ".lock").toPath().toUri())
+        return RandomAccessFile(lockFile.toFile(),"rw").channel.lock()
+//        open(lockFile, setOf(StandardOpenOption.CREATE)).lock()
+
+    }
+
+    private fun releaseLock(fileLock: FileLock){
+        fileLock.release()
     }
 
     private fun windowsCheck() {
