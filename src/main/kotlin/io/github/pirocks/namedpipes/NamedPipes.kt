@@ -21,8 +21,14 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
     }
 
     init {
-        if (System.getProperty("os.name").startsWith("Windows")) {
-            throw UnsupportedOperationException("This library only works with unix.")
+        windowsCheck()
+        if(openExistingFile){
+            val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
+            if(!attrs.isOther){
+                throw IllegalArgumentException("Existing file is not a named pipe")
+            }
+        }else if(namedPipe.exists()){
+            throw IllegalArgumentException("File already exists, not opening.")
         }
         if (!namedPipe.exists() || overWriteExistingFile) {
             if (overWriteExistingFile) {
@@ -33,13 +39,11 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
                 throw IllegalStateException("Creation of named pipe failed.")
             }
         }
-        if(openExistingFile){
-            val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
-            if(!attrs.isOther){
-                throw IllegalArgumentException("Existing file is not a named pipe")
-            }
-        }else if(namedPipe.exists()){
-            throw IllegalArgumentException("File already exists, not opening.")
+    }
+
+    private fun windowsCheck() {
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            throw UnsupportedOperationException("This library only works with unix.")
         }
     }
 
