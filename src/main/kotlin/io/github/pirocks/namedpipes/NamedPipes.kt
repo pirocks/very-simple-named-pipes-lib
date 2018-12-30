@@ -1,18 +1,10 @@
 package io.github.pirocks.namedpipes
 
 import java.io.*
-import java.lang.IllegalArgumentException
-import java.lang.IllegalStateException
-import java.lang.UnsupportedOperationException
-import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
-import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.Files
-import java.nio.file.OpenOption
 import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
-import java.nio.file.attribute.FileAttribute
-import java.nio.file.attribute.FileStoreAttributeView
+import java.nio.file.attribute.BasicFileAttributes
 
 
 /**
