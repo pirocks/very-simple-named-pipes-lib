@@ -18,6 +18,9 @@ import java.nio.file.Files
 class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, openExistingFile: Boolean = false, val deleteOnClose: Boolean = true) : Closeable{
     companion object {
         var mkfifoExecutableName = "mkfifo"
+        class FileAlreadyExists : IllegalArgumentException("File already exists, not opening.")//todo maybe use kotlin stdlib class for this
+        class ExistingFileNotANamedPipe : IllegalArgumentException("Existing file is not a named pipe")
+        class NamedPipeCreationFailed : IllegalStateException("Creation of named pipe failed.")
     }
 
     init {
@@ -25,10 +28,10 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
         if(openExistingFile){
             val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
             if(!attrs.isOther){
-                throw IllegalArgumentException("Existing file is not a named pipe")
+                throw ExistingFileNotANamedPipe()
             }
         }else if(namedPipe.exists()){
-            throw IllegalArgumentException("File already exists, not opening.")
+            throw FileAlreadyExists()
         }
         if (!namedPipe.exists() || overWriteExistingFile) {
             if (overWriteExistingFile) {
@@ -36,7 +39,7 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
             }
             val creationRes = Runtime.getRuntime().exec(arrayOf(mkfifoExecutableName, namedPipe.absolutePath)).waitFor()
             if(creationRes != 0){
-                throw IllegalStateException("Creation of named pipe failed.")
+                throw NamedPipeCreationFailed()
             }
         }
     }
