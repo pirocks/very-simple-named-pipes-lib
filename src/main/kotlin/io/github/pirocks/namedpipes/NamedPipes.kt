@@ -2,7 +2,12 @@ package io.github.pirocks.namedpipes
 
 import java.io.*
 import java.lang.IllegalArgumentException
+import java.lang.IllegalStateException
 import java.lang.UnsupportedOperationException
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.Files
+
+
 
 /**
  * Class represents named pipes.
@@ -10,7 +15,7 @@ import java.lang.UnsupportedOperationException
  * @param openExistingFile If file already exists read from named pipe.
  * @param overWriteExistingFile If file already exists , delete and overwrite
  */
-class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExistingFile: Boolean = false, val deleteOnClose: Boolean = true) : Closeable{
+class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, openExistingFile: Boolean = false, val deleteOnClose: Boolean = true) : Closeable{
     companion object {
         var mkfifoExecutableName = "mkfifo"
     }
@@ -19,11 +24,19 @@ class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExis
         if (System.getProperty("os.name").startsWith("Windows")) {
             throw UnsupportedOperationException("This library only works with unix.")
         }
-        if (!name.exists() || overWriteExistingFile || openExistingFile) {
+        if (!namedPipe.exists() || overWriteExistingFile) {
             if (overWriteExistingFile) {
-                name.delete()
+                namedPipe.delete()
             }
-            Runtime.getRuntime().exec(arrayOf(mkfifoExecutableName, name.absolutePath))
+            val creationRes = Runtime.getRuntime().exec(arrayOf(mkfifoExecutableName, namedPipe.absolutePath)).waitFor()
+            if(creationRes != 0){
+                throw IllegalStateException("Creation of named pipe failed.")
+            }
+        } else if(openExistingFile){
+            val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
+            if(!attrs.isOther){
+                throw IllegalArgumentException("Existing file is not a named pipe")
+            }
         } else {
             throw IllegalArgumentException("File already existed")
         }
@@ -33,13 +46,13 @@ class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExis
 
 
     private val inputStreamLazy: Lazy<DataInputStream> = lazy {
-        val res = DataInputStream(FileInputStream(name))
+        val res = DataInputStream(FileInputStream(namedPipe))
         inputOpen = true
         res
     }
     private var outputOpen = false
     private val outputStreamLazy: Lazy<DataOutputStream> = lazy {
-        val res = DataOutputStream(FileOutputStream(name))
+        val res = DataOutputStream(FileOutputStream(namedPipe))
         outputOpen = true
         res
     }
@@ -56,7 +69,7 @@ class NamedPipe(val name: File, overWriteExistingFile: Boolean = false, openExis
             inputOpen = false
         }
         if (deleteOnClose) {
-            name.delete()
+            namedPipe.delete()
         }
     }
 

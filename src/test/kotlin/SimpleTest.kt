@@ -7,9 +7,21 @@ class SimpleTest{
     @Test
     fun simple(){
         val tempFile = Files.createTempFile("named-pipes-test", "").toFile()
-        val pipe = NamedPipe(tempFile, openExistingFile = true)
+        tempFile.delete()
+        val pipe = NamedPipe(tempFile, openExistingFile = false,overWriteExistingFile = false)
         val toWrite = 2739847
-        pipe.writeStream.writeInt(toWrite)
-        Assert.assertEquals(pipe.readStream.readInt(),toWrite)
+        val writeThread = Thread {
+            pipe.writeStream.writeInt(toWrite)
+        }
+        writeThread.start()
+        var intWasRead = false
+        val readThread = Thread {
+            Assert.assertEquals(pipe.readStream.readInt(), toWrite)
+            intWasRead = true
+        }
+        readThread.start()
+        writeThread.join()
+        readThread.join()
+        Assert.assertTrue(intWasRead)
     }
 }
