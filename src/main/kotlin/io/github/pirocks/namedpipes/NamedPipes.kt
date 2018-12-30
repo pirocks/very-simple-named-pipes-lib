@@ -32,13 +32,14 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
             if(creationRes != 0){
                 throw IllegalStateException("Creation of named pipe failed.")
             }
-        } else if(openExistingFile){
+        }
+        if(openExistingFile){
             val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
             if(!attrs.isOther){
                 throw IllegalArgumentException("Existing file is not a named pipe")
             }
-        } else {
-            throw IllegalArgumentException("File already existed")
+        }else if(namedPipe.exists()){
+            throw IllegalArgumentException("File already exists, not opening.")
         }
     }
 
