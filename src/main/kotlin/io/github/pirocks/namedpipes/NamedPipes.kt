@@ -3,9 +3,11 @@ package io.github.pirocks.namedpipes
 import java.io.*
 import java.nio.channels.FileLock
 import java.nio.file.Files
-import java.nio.file.Paths
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
+private val initLock = ReentrantLock()//allows for multi-threading instead of just multiprocessing.
 
 /**
  * Class represents named pipes.
@@ -25,38 +27,41 @@ class NamedPipe(val namedPipe: File, overWriteExistingFile: Boolean = false, ope
         windowsCheck()
         //critical section - begin
         //This critical section exists to prevent the creation of two named pipe objects unintentionally referring to the same pipe
-        val lock = acquireLock()
-        if(namedPipe.exists()){
-            if(openExistingFile){
-                val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
-                if(!attrs.isOther){
-                    throw ExistingFileNotANamedPipe()
+        initLock.withLock {
+            val fileLock = acquireFileSystemLock()
+            if(namedPipe.exists()){
+                if(openExistingFile){
+                    val attrs = Files.readAttributes(namedPipe.toPath(), BasicFileAttributes::class.java)
+                    if(!attrs.isOther){
+                        releaseFileSystemLock(fileLock)
+                        throw ExistingFileNotANamedPipe()
+                    }
+                }else{
+                    releaseFileSystemLock(fileLock)
+                    throw FileAlreadyExists()
                 }
-            }else{
-                throw FileAlreadyExists()
             }
+            if (!namedPipe.exists() || overWriteExistingFile) {
+                if (overWriteExistingFile) {
+                    namedPipe.delete()
+                }
+                val creationRes = Runtime.getRuntime().exec(arrayOf(mkfifoExecutableName, namedPipe.absolutePath)).waitFor()
+                if(creationRes != 0){
+                    releaseFileSystemLock(fileLock)
+                    throw NamedPipeCreationFailed()
+                }
+            }
+            releaseFileSystemLock(fileLock)
         }
-        if (!namedPipe.exists() || overWriteExistingFile) {
-            if (overWriteExistingFile) {
-                namedPipe.delete()
-            }
-            val creationRes = Runtime.getRuntime().exec(arrayOf(mkfifoExecutableName, namedPipe.absolutePath)).waitFor()
-            if(creationRes != 0){
-                throw NamedPipeCreationFailed()
-            }
-        }
-        releaseLock(lock)
         //critical section - end
     }
 
-    private fun acquireLock(): FileLock {
-        val lockFile = Paths.get(File(namedPipe.absolutePath + ".lock").toPath().toUri())
-        return RandomAccessFile(lockFile.toFile(),"rw").channel.lock()
-//        open(lockFile, setOf(StandardOpenOption.CREATE)).lock()
-
+    private fun acquireFileSystemLock(): FileLock {
+        val lockFile = File(namedPipe.absolutePath + ".lock")
+        return RandomAccessFile(lockFile,"rw").channel.lock()
     }
 
-    private fun releaseLock(fileLock: FileLock){
+    private fun releaseFileSystemLock(fileLock: FileLock){
         fileLock.release()
     }
 
